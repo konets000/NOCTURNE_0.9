@@ -1,34 +1,84 @@
-name: Build Android APK
+name: CI — test and build
 
 on:
   push:
-    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  test-and-build:
+    name: Test and package Android + Windows
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up JDK 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+      - name: Set up Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
 
-    - name: Generate Gradle Wrapper
-      run: gradle wrapper
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
 
-    - name: Build Debug APK (Skipping Asset Task)
-      run: ./gradlew assembleDebug -x prepareStructuredDictionaryAssets
+      - name: Install Android API 35 build packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          gradle-version: '8.9'
+          cache-provider: basic
+
+      - name: Run offline regression suite
+        run: sh tests/run-tests.sh
+
+      - name: Build Android debug APK
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Package portable Windows edition
+        run: bash tools/package-windows-portable.sh app/build/generated/nocturne/assets/dictionary build/ci-artifacts
+
+      - name: Read app version from build.gradle
+        run: |
+          VERSION="$(sed -n "s/^def nocturneVersionName = '\([^']*\)'.*/\1/p" app/build.gradle)"
+          if [ -z "$VERSION" ]; then
+            echo "Could not determine nocturneVersionName from app/build.gradle" >&2
+            exit 1
+          fi
+          echo "NOCTURNE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building artifacts for version $VERSION"
+
+      - name: Copy APK to artifact folder
+        run: |
+          mkdir -p build/ci-artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk "build/ci-artifacts/NOCTURNE-Android-debug-${NOCTURNE_VERSION}.apk"
+
+      # No signing key is cached, uploaded, or persisted. Hosted-runner debug keys are ephemeral.
+      # CI artifacts are for testing only; official releases need a separate reviewed signing process.
+      - name: Upload test artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: NOCTURNE-CI-${{ github.run_number }}
+          path: |
+            build/ci-artifacts/NOCTURNE-Android-debug-${{ env.NOCTURNE_VERSION }}.apk
+            build/ci-artifacts/NOCTURNE-Windows-Portable-${{ env.NOCTURNE_VERSION }}.zip
+          if-no-files-found: error
+          retention-days: 14
