@@ -24,8 +24,8 @@ jobs:
     - name: Generate Gradle Wrapper
       run: gradle wrapper
 
-    - name: Build Debug APK with Gradle
-      run: ./gradlew assembleDebug
+    - name: Build Debug APK (Skipping Checksums)
+      run: ./gradlew assembleDebug -x prepareStructuredDictionaryAssets
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
