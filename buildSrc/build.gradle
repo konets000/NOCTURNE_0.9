@@ -1,0 +1,4 @@
+// Build logic for NOCTURNE. Contains the dictionary packaging task used by :app.
+plugins {
+    id 'groovy'
+}

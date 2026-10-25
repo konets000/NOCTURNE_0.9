@@ -1,0 +1,1 @@
+package android.view; public class View { public static final int OVER_SCROLL_NEVER = 2; public void setOverScrollMode(int m){} public void setPadding(int l, int t, int r, int b){} }

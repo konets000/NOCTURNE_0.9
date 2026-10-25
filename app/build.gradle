@@ -1,0 +1,82 @@
+import com.nocturne.build.PrepareDictionaryAssetsTask
+
+plugins {
+    id 'com.android.application'
+}
+
+def nocturneVersionName = '0.8.1'
+
+// Configured upstream source URLs and optional local overrides.
+def dictionaryProps = new Properties()
+rootProject.file('dictionary.properties').withInputStream { dictionaryProps.load(it) }
+
+def prepareDictionaries = tasks.register('prepareNocturneDictionaryAssets', PrepareDictionaryAssetsTask) {
+    group = 'nocturne'
+    description = 'Downloads, validates and packages the offline CC-CEDICT, Unihan and Jieba assets.'
+
+    appVersion.set(nocturneVersionName)
+    cedictUrl.set(dictionaryProps.getProperty('cedict.url'))
+    unihanUrl.set(dictionaryProps.getProperty('unihan.url'))
+    jiebaUrl.set(dictionaryProps.getProperty('jieba.url'))
+
+    def pinCedict = dictionaryProps.getProperty('cedict.sha256', '').trim()
+    def pinUnihan = dictionaryProps.getProperty('unihan.sha256', '').trim()
+    def pinJieba = dictionaryProps.getProperty('jieba.sha256', '').trim()
+    if (pinCedict) cedictSha256.set(pinCedict)
+    if (pinUnihan) unihanSha256.set(pinUnihan)
+    if (pinJieba) jiebaSha256.set(pinJieba)
+
+    if (project.hasProperty('nocturneCedictFile')) {
+        cedictOverrideFile.fileValue(project.rootProject.file(project.property('nocturneCedictFile')))
+    }
+    if (project.hasProperty('nocturneUnihanFile')) {
+        unihanOverrideFile.fileValue(project.rootProject.file(project.property('nocturneUnihanFile')))
+    }
+    if (project.hasProperty('nocturneJiebaFile')) {
+        jiebaOverrideFile.fileValue(project.rootProject.file(project.property('nocturneJiebaFile')))
+    }
+
+    cacheDir.set(rootProject.layout.projectDirectory.dir('dictionary-cache'))
+    outputDir.set(project.layout.buildDirectory.dir('generated/nocturne/assets'))
+}
+
+android {
+    namespace 'com.nocturne.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.nocturne.app'
+        minSdk 24
+        targetSdk 35
+        versionCode 13
+        versionName nocturneVersionName
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir(prepareDictionaries.flatMap { it.outputDir })
+        }
+    }
+}
+
+// Make sure the generated dictionaries exist before any asset merge runs, whichever variant is built.
+tasks.configureEach { task ->
+    if (task.name.startsWith('merge') && task.name.endsWith('Assets')) {
+        task.dependsOn(prepareDictionaries)
+    }
+}
+
+dependencies {
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.webkit:webkit:1.12.1'
+}
