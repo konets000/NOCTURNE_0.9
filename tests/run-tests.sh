@@ -42,7 +42,7 @@ node "$ROOT/tests/app-smoke.test.cjs"
 if command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then
   echo "== 5. portable Windows package smoke test"
   PACKAGE_OUT="$OUT/windows-package"
-  "$ROOT/tools/package-windows-portable.sh" "$OUT/contract/emit/out/dictionary" "$PACKAGE_OUT" >/dev/null
+  bash "$ROOT/tools/package-windows-portable.sh" "$OUT/contract/emit/out/dictionary" "$PACKAGE_OUT" >/dev/null
   ARCHIVE="$PACKAGE_OUT/NOCTURNE-Windows-Portable-0.8.1.zip"
   unzip -t "$ARCHIVE" >/dev/null
   unzip -Z1 "$ARCHIVE" | grep -q '/start-nocturne.ps1$'
