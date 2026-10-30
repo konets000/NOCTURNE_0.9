@@ -49,8 +49,11 @@ jobs:
       - name: Run offline regression suite
         run: sh tests/run-tests.sh
 
+      - name: Verify bundled CC-CEDICT snapshot
+        run: sha256sum --check dictionary-sources/SHA256SUMS
+
       - name: Build Android debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace -PnocturneCedictFile=dictionary-sources/cedict_1_0_ts_utf-8_mdbg.txt.gz :app:assembleDebug
 
       - name: Package portable Windows edition
         run: bash tools/package-windows-portable.sh app/build/generated/nocturne/assets/dictionary build/ci-artifacts
