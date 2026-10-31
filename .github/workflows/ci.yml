@@ -1,3 +1,8 @@
+      - name: Diagnose Kotlin runtime dependencies
+        run: |
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib --configuration debugRuntimeClasspath
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk8 --configuration debugRuntimeClasspath
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk7 --configuration debugRuntimeClasspath
 name: CI — test and build
 
 on:
