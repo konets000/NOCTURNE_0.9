@@ -1,8 +1,4 @@
-      - name: Diagnose Kotlin runtime dependencies
-        run: |
-          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib --configuration debugRuntimeClasspath
-          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk8 --configuration debugRuntimeClasspath
-          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk7 --configuration debugRuntimeClasspath
+
 name: CI — test and build
 
 on:
@@ -22,6 +18,7 @@ jobs:
     name: Test and package Android + Windows
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,6 +53,12 @@ jobs:
 
       - name: Verify bundled CC-CEDICT snapshot
         run: sha256sum --check dictionary-sources/SHA256SUMS
+
+      - name: Diagnose Kotlin runtime dependencies
+        run: |
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib --configuration debugRuntimeClasspath
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk8 --configuration debugRuntimeClasspath
+          gradle --no-daemon :app:dependencyInsight --dependency kotlin-stdlib-jdk7 --configuration debugRuntimeClasspath
 
       - name: Build Android debug APK
         run: gradle --no-daemon --stacktrace -PnocturneCedictFile=dictionary-sources/cedict_1_0_ts_utf-8_mdbg.txt.gz :app:assembleDebug
